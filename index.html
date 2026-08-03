@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Liquid Light — LL-1 Overhead Stage</title>
+<style>
+  :root{
+    --stage:#08070A;
+    --panel:#131217;
+    --panel-2:#1A1920;
+    --rule:#2A2830;
+    --ink:#CFC9BE;
+    --ink-dim:#7A756D;
+    --ink-faint:#4C4850;
+    --accent:#E0563C;
+    --pad:14px;
+    --label:10px/1 "Helvetica Neue", "Arial Narrow", Helvetica, Arial, sans-serif;
+    --mono:11px/1 ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--stage);}
+  body{
+    font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;color:var(--ink);
+    -webkit-user-select:none;user-select:none;
+  }
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
+
+  #console{
+    position:fixed;top:0;left:0;bottom:0;width:268px;z-index:10;
+    background:linear-gradient(180deg,#16151B 0%, var(--panel) 22%, #101016 100%);
+    border-right:1px solid var(--rule);
+    box-shadow:1px 0 0 rgba(255,255,255,.03), 18px 0 40px rgba(0,0,0,.5);
+    display:flex;flex-direction:column;
+    transition:transform .32s cubic-bezier(.2,.7,.2,1);
+    overflow:hidden;
+  }
+  #console.closed{transform:translateX(-268px)}
+  @media (prefers-reduced-motion:reduce){#console{transition:none}}
+
+  .masthead{padding:16px var(--pad) 12px;border-bottom:1px solid var(--rule);flex:0 0 auto}
+  .masthead h1{
+    margin:0;font:600 13px/1 "Helvetica Neue",Helvetica,Arial,sans-serif;
+    letter-spacing:.34em;text-transform:uppercase;color:var(--ink);
+  }
+  .masthead .sub{
+    margin-top:7px;font:var(--mono);letter-spacing:.16em;color:var(--ink-faint);text-transform:uppercase;
+    display:flex;justify-content:space-between;
+  }
+  .masthead .sub .lamp{color:var(--accent);transition:color .25s}
+
+  .rack{flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;padding-bottom:8px}
+  .rack::-webkit-scrollbar{width:6px}
+  .rack::-webkit-scrollbar-thumb{background:#2E2C36;border-radius:3px}
+
+  fieldset{border:0;margin:0;padding:14px var(--pad) 16px;border-bottom:1px solid var(--rule)}
+  legend{padding:0;font:var(--label);letter-spacing:.22em;text-transform:uppercase;color:var(--ink-dim)}
+  fieldset > legend + *{margin-top:14px}
+
+  .swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}
+  .sw{
+    position:relative;aspect-ratio:1;border-radius:50%;border:0;padding:0;cursor:pointer;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.55), 0 1px 2px rgba(0,0,0,.5);
+    transition:transform .14s ease;
+  }
+  .sw:hover{transform:translateY(-2px)}
+  .sw::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1px solid transparent;transition:border-color .16s}
+  .sw[aria-pressed="true"]::after{border-color:var(--ink)}
+  .sw:focus-visible{outline:2px solid #fff;outline-offset:4px}
+
+  .editrow{display:flex;align-items:center;gap:10px;margin-top:12px}
+  .editrow span{font:var(--label);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);flex:1}
+  input[type=color]{
+    -webkit-appearance:none;appearance:none;border:0;padding:0;background:none;
+    width:34px;height:22px;border-radius:2px;cursor:pointer;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);
+  }
+  input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+  input[type=color]::-webkit-color-swatch{border:0;border-radius:2px}
+  input[type=color]::-moz-color-swatch{border:0;border-radius:2px}
+
+  .ctrl{margin-top:15px}
+  .ctrl .cap{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+  .ctrl .cap b{font:var(--label);font-weight:400;letter-spacing:.14em;text-transform:uppercase;color:var(--ink)}
+  .ctrl .cap i{font:var(--mono);font-style:normal;color:var(--ink-dim);letter-spacing:.06em}
+  .ctrl .note{margin-top:6px;font:10px/1.4 "Helvetica Neue",Helvetica,Arial,sans-serif;color:var(--ink-faint)}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:16px;background:none;cursor:pointer;display:block}
+  input[type=range]::-webkit-slider-runnable-track{height:2px;background:#302E38;box-shadow:0 1px 0 rgba(255,255,255,.05)}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:11px;height:16px;margin-top:-7px;border-radius:1px;
+    background:linear-gradient(180deg,#D9D3C8,#8C877E);
+    box-shadow:0 1px 2px rgba(0,0,0,.7), inset 0 -1px 0 rgba(0,0,0,.3);
+  }
+  input[type=range]::-moz-range-track{height:2px;background:#302E38}
+  input[type=range]::-moz-range-thumb{width:11px;height:16px;border:0;border-radius:1px;background:linear-gradient(180deg,#D9D3C8,#8C877E)}
+  input[type=range]:focus-visible::-webkit-slider-thumb{background:#fff}
+
+  .toggle{display:flex;align-items:center;gap:9px;margin-top:11px;cursor:pointer}
+  .toggle input{position:absolute;opacity:0;pointer-events:none}
+  .toggle .led{
+    width:8px;height:8px;border-radius:50%;background:#26242C;flex:0 0 auto;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);transition:background .15s,box-shadow .15s;
+  }
+  .toggle input:checked + .led{background:var(--accent);box-shadow:0 0 7px var(--accent)}
+  .toggle input:focus-visible + .led{box-shadow:0 0 0 2px #fff}
+  .toggle span{font:var(--label);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim)}
+  .toggle input:checked ~ span{color:var(--ink)}
+
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:14px var(--pad)}
+  .btn{
+    font:var(--label);letter-spacing:.16em;text-transform:uppercase;color:var(--ink);
+    background:linear-gradient(180deg,var(--panel-2),#111016);
+    border:1px solid var(--rule);border-radius:2px;padding:10px 6px;cursor:pointer;
+    transition:background .15s,border-color .15s;
+  }
+  .btn:hover{background:linear-gradient(180deg,#232128,#17161D);border-color:#3A3844}
+  .btn:active{background:#0E0D12}
+  .btn:focus-visible{outline:2px solid #fff;outline-offset:2px}
+
+  #tab{
+    position:fixed;top:14px;left:268px;z-index:11;
+    width:26px;height:44px;border:1px solid var(--rule);border-left:0;border-radius:0 3px 3px 0;
+    background:linear-gradient(180deg,#1A1920,#101016);color:var(--ink-dim);
+    font:var(--mono);cursor:pointer;display:flex;align-items:center;justify-content:center;
+    transition:left .32s cubic-bezier(.2,.7,.2,1),color .15s;
+  }
+  #tab:hover{color:var(--ink)}
+  #tab.closed{left:0}
+  #tab:focus-visible{outline:2px solid #fff;outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){#tab{transition:none}}
+
+  #hint{
+    position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:9;
+    font:var(--label);letter-spacing:.2em;text-transform:uppercase;color:rgba(20,16,10,.62);
+    background:rgba(255,255,255,.22);border:1px solid rgba(0,0,0,.12);border-radius:2px;
+    padding:9px 14px;pointer-events:none;transition:opacity .8s ease;text-align:center;
+    backdrop-filter:blur(2px);
+  }
+  #hint.gone{opacity:0}
+
+  #fail{
+    position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:20;
+    padding:32px;text-align:center;font:13px/1.6 "Helvetica Neue",Helvetica,Arial,sans-serif;color:var(--ink);
+  }
+
+  @media (max-width:600px){
+    #console{width:82vw}
+    #console.closed{transform:translateX(-82vw)}
+    #tab{left:82vw}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stage"></canvas>
+<button id="tab" aria-label="Show or hide the console">◀</button>
+
+<div id="console">
+  <div class="masthead">
+    <h1>Liquid Light</h1>
+    <div class="sub"><span>LL-1 · Overhead stage</span><span class="lamp" id="lamp">● dye loaded</span></div>
+  </div>
+
+  <div class="rack">
+    <fieldset>
+      <legend>Dye palette</legend>
+      <div class="swatches" id="swatches"></div>
+      <div class="editrow">
+        <span>Recolor selected dye</span>
+        <input type="color" id="dyeEdit" aria-label="Recolor the selected dye">
+      </div>
+      <label class="toggle"><input type="checkbox" id="cycle" checked><i class="led"></i><span>Advance dye each drop</span></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Glass &amp; lamp</legend>
+      <div class="editrow">
+        <span>Lamp</span>
+        <input type="color" id="lampEdit" value="#fff2dc" aria-label="Projector lamp color">
+      </div>
+      <div class="editrow">
+        <span>Clear bath tint</span>
+        <input type="color" id="bathEdit" value="#f2f4f7" aria-label="Suspension bath tint">
+      </div>
+      <div class="ctrl">
+        <div class="cap"><b>Lamp hot spot</b><i id="v-hot">—</i></div>
+        <input type="range" id="hot" min="0" max="100" value="25">
+        <div class="note">Falloff from the center of the Fresnel stage to the corners.</div>
+      </div>
+      <div class="ctrl">
+        <div class="cap"><b>Fresnel rings</b><i id="v-rings">—</i></div>
+        <input type="range" id="rings" min="0" max="100" value="8">
+        <div class="note">Concentric grooves moulded into the stage glass. Zero for clean glass.</div>
+      </div>
+      <div class="ctrl">
+        <div class="cap"><b>Wet sheen</b><i id="v-sheen">—</i></div>
+        <input type="range" id="sheen" min="0" max="100" value="50">
+        <div class="note">Highlight on the film, plus the bright cores and dark rims light makes passing through curved dye.</div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Film on the glass</legend>
+      <div class="ctrl">
+        <div class="cap"><b>Spread</b><i id="v-spread">—</i></div>
+        <input type="range" id="spread" min="0" max="100" value="90">
+        <div class="note">How hard a drop wets outward. Every drop opens as a circle and thins as it grows.</div>
+      </div>
+      <div class="ctrl">
+        <div class="cap"><b>Merge rate</b><i id="v-merge">—</i></div>
+        <input type="range" id="merge" min="0" max="100" value="92">
+        <div class="note">Low keeps each dye beaded and separate. High blends touching colors into new ones.</div>
+      </div>
+      <div class="ctrl">
+        <div class="cap"><b>Drop size</b><i id="v-size">—</i></div>
+        <input type="range" id="size" min="5" max="100" value="60">
+      </div>
+      <div class="ctrl">
+        <div class="cap"><b>Fade</b><i id="v-fade">—</i></div>
+        <input type="range" id="fade" min="0" max="100" value="0">
+        <div class="note">Dye clearing off the glass over time.</div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Currents</legend>
+      <div class="ctrl">
+        <div class="cap"><b>Stir force</b><i id="v-force">—</i></div>
+        <input type="range" id="force" min="10" max="100" value="65">
+      </div>
+      <div class="ctrl">
+        <div class="cap"><b>Swirl</b><i id="v-swirl">—</i></div>
+        <input type="range" id="swirl" min="0" max="100" value="42">
+        <div class="note">Curl held in the bath. Low reads as still glass, high marbles the film.</div>
+      </div>
+      <div class="ctrl">
+        <div class="cap"><b>Viscosity</b><i id="v-visc">—</i></div>
+        <input type="range" id="visc" min="0" max="100" value="9">
+        <div class="note">How quickly the bath calms after it's stirred.</div>
+      </div>
+      <div class="ctrl">
+        <div class="cap"><b>Stage tilt</b><i id="v-tilt">—</i></div>
+        <input type="range" id="tilt" min="-100" max="100" value="0">
+        <div class="note">Lift one edge of the glass and let the film run.</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="paint"><i class="led"></i><span>Dragging also paints dye</span></label>
+      <label class="toggle"><input type="checkbox" id="auto" checked><i class="led"></i><span>Drip on its own</span></label>
+    </fieldset>
+
+    <div class="actions">
+      <button class="btn" id="clear">Wipe glass</button>
+      <button class="btn" id="full">Full screen</button>
+    </div>
+  </div>
+</div>
+
+<div id="hint">Double-click to drop dye · drag to stir</div>
+<div id="fail">This browser can't run the light show — it needs WebGL2 with floating-point render targets.</div>
+
+<script>
+(() => {
+'use strict';
+
+const canvas = document.getElementById('stage');
+const gl = canvas.getContext('webgl2', {
+  alpha:false, depth:false, stencil:false, antialias:false, preserveDrawingBuffer:false, powerPreference:'high-performance'
+});
+if (!gl) { document.getElementById('fail').style.display='flex'; return; }
+
+gl.getExtension('EXT_color_buffer_float');
+gl.getExtension('EXT_color_buffer_half_float');
+gl.getExtension('OES_texture_float_linear');
+
+function supports(internalFormat, format, type){
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, 4, 4, 0, format, type, null);
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.deleteFramebuffer(fbo); gl.deleteTexture(tex);
+  return ok;
+}
+
+let RGBA, RG, R, TYPE = gl.HALF_FLOAT;
+if (supports(gl.RGBA16F, gl.RGBA, gl.HALF_FLOAT)) {
+  RGBA = {i:gl.RGBA16F, f:gl.RGBA}; RG = {i:gl.RG16F, f:gl.RG}; R = {i:gl.R16F, f:gl.RED};
+} else if (supports(gl.RGBA32F, gl.RGBA, gl.FLOAT)) {
+  TYPE = gl.FLOAT;
+  RGBA = {i:gl.RGBA32F, f:gl.RGBA}; RG = {i:gl.RG32F, f:gl.RG}; R = {i:gl.R32F, f:gl.RED};
+} else { document.getElementById('fail').style.display='flex'; return; }
+
+/* ---------------- shader plumbing ---------------- */
+function compile(type, src){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s), src);
+  return s;
+}
+class Program {
+  constructor(vs, fs){
+    this.p = gl.createProgram();
+    gl.attachShader(this.p, vs); gl.attachShader(this.p, compile(gl.FRAGMENT_SHADER, fs));
+    gl.linkProgram(this.p);
+    if (!gl.getProgramParameter(this.p, gl.LINK_STATUS)) console.error(gl.getProgramInfoLog(this.p));
+    this.u = {};
+    const n = gl.getProgramParameter(this.p, gl.ACTIVE_UNIFORMS);
+    for (let i=0;i<n;i++){ const name = gl.getActiveUniform(this.p, i).name; this.u[name] = gl.getUniformLocation(this.p, name); }
+  }
+  use(){ gl.useProgram(this.p); }
+}
+
+const baseVS = compile(gl.VERTEX_SHADER, `
+precision highp float;
+attribute vec2 aPosition;
+varying vec2 vUv, vL, vR, vT, vB;
+uniform vec2 texelSize;
+void main(){
+  vUv = aPosition * 0.5 + 0.5;
+  vL = vUv - vec2(texelSize.x, 0.0);
+  vR = vUv + vec2(texelSize.x, 0.0);
+  vT = vUv + vec2(0.0, texelSize.y);
+  vB = vUv - vec2(0.0, texelSize.y);
+  gl_Position = vec4(aPosition, 0.0, 1.0);
+}`);
+
+const HEAD = 'precision highp float; precision highp sampler2D; varying vec2 vUv, vL, vR, vT, vB;\n';
+
+const clearP = new Program(baseVS, HEAD + `
+uniform sampler2D uTexture; uniform float value;
+void main(){ gl_FragColor = value * texture2D(uTexture, vUv); }`);
+
+/* dye is stored as a thickness-weighted tint:
+   rgb = tint * thickness  (so mixing averages hues instead of stacking
+         filters, which would drive complementary dyes to black)
+   a   = film thickness, used for spreading, shading and tilt          */
+const dyeSplatP = new Program(baseVS, HEAD + `
+uniform sampler2D uTarget; uniform float aspectRatio, radius, load; uniform vec3 tint; uniform vec2 point;
+void main(){
+  vec2 p = vUv - point; p.x *= aspectRatio;
+  float d = length(p) / radius;
+  float f = smoothstep(1.0, 0.58, d);           // flat-topped bead, round edge
+  gl_FragColor = mix(texture2D(uTarget, vUv), vec4(tint * load, load), f);
+}`);
+
+const velSplatP = new Program(baseVS, HEAD + `
+uniform sampler2D uTarget; uniform float aspectRatio, radius; uniform vec2 point, force;
+void main(){
+  vec2 p = vUv - point; p.x *= aspectRatio;
+  float f = smoothstep(1.0, 0.0, length(p) / radius);
+  gl_FragColor = vec4(texture2D(uTarget, vUv).xy + f * force, 0.0, 1.0);
+}`);
+
+/* perfectly radial impulse — the drop pushes out evenly in every direction */
+const radialP = new Program(baseVS, HEAD + `
+uniform sampler2D uTarget; uniform float aspectRatio, radius, force; uniform vec2 point;
+void main(){
+  vec2 p = vUv - point; p.x *= aspectRatio;
+  float d = length(p);
+  vec2 dir = p / max(d, 1e-5);
+  float u = d / radius;
+  float prof = smoothstep(0.0, 0.45, u) * smoothstep(1.25, 0.45, u);
+  gl_FragColor = vec4(texture2D(uTarget, vUv).xy + dir * force * prof, 0.0, 1.0);
+}`);
+
+const advectP = new Program(baseVS, HEAD + `
+uniform sampler2D uVelocity, uSource; uniform vec2 texelSize; uniform float dt, dissipation;
+void main(){
+  vec2 coord = vUv - dt * texture2D(uVelocity, vUv).xy * texelSize;
+  gl_FragColor = dissipation * texture2D(uSource, coord);
+}`);
+
+/* dye transport on a flat plate: carried by the bath, plus a thin-film
+   wetting velocity  vs = -k*h*grad(h)  that opens every drop as a circle.
+   Continuity (1 - dt*div vs) thins the film as it spreads, so it settles. */
+const filmP = new Program(baseVS, HEAD + `
+uniform sampler2D uVelocity, uSource; uniform vec2 texelSize; uniform float dt, dissipation, spread;
+void main(){
+  vec2 coord = vUv - dt * texture2D(uVelocity, vUv).xy * texelSize;
+  vec4 c = texture2D(uSource, coord);
+
+  // Wetting as thickness-weighted isotropic diffusion: thick film creeps
+  // outward fast, thin film barely moves, so a bead opens as a circle and
+  // settles on its own. Conserves dye, so it can't run away into grain, and
+  // the kernel is rotationally even so the rim never fingers on the axes.
+  vec2 d = texelSize * 3.0;
+  vec4 s = c * 4.0
+    + (texture2D(uSource, coord + vec2( d.x, 0.0)) + texture2D(uSource, coord + vec2(-d.x, 0.0))
+    +  texture2D(uSource, coord + vec2( 0.0, d.y)) + texture2D(uSource, coord + vec2( 0.0,-d.y))) * 2.0
+    +  texture2D(uSource, coord + vec2( d.x, d.y)) + texture2D(uSource, coord + vec2(-d.x, d.y))
+    +  texture2D(uSource, coord + vec2( d.x,-d.y)) + texture2D(uSource, coord + vec2(-d.x,-d.y));
+
+  float k = clamp(spread * clamp(c.a, 0.0, 1.5) * dt, 0.0, 0.22);
+  vec4 r = (c + (s / 16.0 - c) * k) * dissipation;
+  gl_FragColor = vec4(clamp(r.rgb, 0.0, 4.0), clamp(r.a, 0.0, 4.0));
+}`);
+
+const divergenceP = new Program(baseVS, HEAD + `
+uniform sampler2D uVelocity;
+void main(){
+  float L = texture2D(uVelocity, vL).x, Rr = texture2D(uVelocity, vR).x;
+  float T = texture2D(uVelocity, vT).y, B = texture2D(uVelocity, vB).y;
+  vec2 C = texture2D(uVelocity, vUv).xy;
+  if (vL.x < 0.0) L = -C.x;
+  if (vR.x > 1.0) Rr = -C.x;
+  if (vT.y > 1.0) T = -C.y;
+  if (vB.y < 0.0) B = -C.y;
+  gl_FragColor = vec4(0.5 * (Rr - L + T - B), 0.0, 0.0, 1.0);
+}`);
+
+const curlP = new Program(baseVS, HEAD + `
+uniform sampler2D uVelocity;
+void main(){
+  float L = texture2D(uVelocity, vL).y, Rr = texture2D(uVelocity, vR).y;
+  float T = texture2D(uVelocity, vT).x, B = texture2D(uVelocity, vB).x;
+  gl_FragColor = vec4(0.5 * (Rr - L - T + B), 0.0, 0.0, 1.0);
+}`);
+
+const vorticityP = new Program(baseVS, HEAD + `
+uniform sampler2D uVelocity, uCurl; uniform float curl, dt;
+void main(){
+  float L = texture2D(uCurl, vL).x, Rr = texture2D(uCurl, vR).x;
+  float T = texture2D(uCurl, vT).x, B = texture2D(uCurl, vB).x;
+  float C = texture2D(uCurl, vUv).x;
+  vec2 force = 0.5 * vec2(abs(T) - abs(B), abs(Rr) - abs(L));
+  force /= length(force) + 0.0001;
+  force *= curl * C;
+  force.y *= -1.0;
+  vec2 v = texture2D(uVelocity, vUv).xy + force * dt;
+  gl_FragColor = vec4(clamp(v, -1000.0, 1000.0), 0.0, 1.0);
+}`);
+
+const pressureP = new Program(baseVS, HEAD + `
+uniform sampler2D uPressure, uDivergence;
+void main(){
+  float L = texture2D(uPressure, vL).x, Rr = texture2D(uPressure, vR).x;
+  float T = texture2D(uPressure, vT).x, B = texture2D(uPressure, vB).x;
+  gl_FragColor = vec4((L + Rr + B + T - texture2D(uDivergence, vUv).x) * 0.25, 0.0, 0.0, 1.0);
+}`);
+
+const gradientP = new Program(baseVS, HEAD + `
+uniform sampler2D uPressure, uVelocity;
+void main(){
+  float L = texture2D(uPressure, vL).x, Rr = texture2D(uPressure, vR).x;
+  float T = texture2D(uPressure, vT).x, B = texture2D(uPressure, vB).x;
+  gl_FragColor = vec4(texture2D(uVelocity, vUv).xy - vec2(Rr - L, T - B), 0.0, 1.0);
+}`);
+
+const tiltP = new Program(baseVS, HEAD + `
+uniform sampler2D uVelocity, uDye; uniform float amount, dt;
+void main(){
+  vec2 v = texture2D(uVelocity, vUv).xy;
+  v.y += amount * clamp(texture2D(uDye, vUv).a, 0.0, 2.0) * dt;
+  gl_FragColor = vec4(v, 0.0, 1.0);
+}`);
+
+const mergeP = new Program(baseVS, HEAD + `
+uniform sampler2D uTexture; uniform vec2 texelSize; uniform float amount;
+void main(){
+  vec2 tx = texelSize;
+  vec4 s = texture2D(uTexture, vUv) * 4.0
+         + (texture2D(uTexture, vL) + texture2D(uTexture, vR) +
+            texture2D(uTexture, vT) + texture2D(uTexture, vB)) * 2.0
+         + texture2D(uTexture, vUv + vec2(-tx.x,  tx.y))
+         + texture2D(uTexture, vUv + vec2( tx.x,  tx.y))
+         + texture2D(uTexture, vUv + vec2(-tx.x, -tx.y))
+         + texture2D(uTexture, vUv + vec2( tx.x, -tx.y));
+  vec4 r = mix(texture2D(uTexture, vUv), s / 16.0, amount);
+  gl_FragColor = vec4(clamp(r.rgb, 0.0, 4.0), clamp(r.a, 0.0, 4.0));
+}`);
+
+/* the stage: lamp under Fresnel glass, dye read as a stack of filters */
+const displayP = new Program(baseVS, HEAD + `
+uniform sampler2D uDye;
+uniform vec3 uLamp, uBath;
+uniform float uSheen, uHot, uAspect, uRings;
+uniform vec2 texelSize;
+float H(vec2 uv){ return texture2D(uDye, uv).a; }
+void main(){
+  vec2 tx = texelSize;
+  vec4 c = texture2D(uDye, vUv);
+  float hc = c.a;
+  float l = H(vL), r0 = H(vR), t = H(vT), b = H(vB);
+  float tl = H(vUv + vec2(-tx.x,  tx.y)), tr = H(vUv + vec2( tx.x,  tx.y));
+  float bl = H(vUv + vec2(-tx.x, -tx.y)), br = H(vUv + vec2( tx.x, -tx.y));
+  vec2 grad = vec2((tr + 2.0*r0 + br) - (tl + 2.0*l + bl),
+                   (tl + 2.0*t  + tr) - (bl + 2.0*b + br)) * 0.125;
+  float lap = (4.0*(l + r0 + t + b) + (tl + tr + bl + br) - 20.0*hc) / 6.0;
+
+  vec2 q = vUv - 0.5;
+  float rad = length(vec2(q.x * uAspect, q.y));
+
+  // lamp field through the Fresnel stage
+  float hotspot = 1.0 - uHot * smoothstep(0.05, 0.95, rad);
+  // concentric grooves of the Fresnel stage — part sine, part sawtooth so
+  // each ring has a shoulder and a step like a real moulded lens
+  float phase = rad * 34.0;
+  float groove = mix(sin(phase * 6.28318), fract(phase) * 2.0 - 1.0, 0.30);
+  vec3 light = uLamp * hotspot * (1.0 + uRings * groove);
+
+  // light focused by the curvature of the film: bright cores, soft rims
+  light *= clamp(1.0 - lap * (18.0 + 42.0 * uSheen), 0.55, 1.9);
+
+  // The film is a tint the lamp passes through. Coverage is remapped so a
+  // drop keeps its color as it thins and spreads instead of washing out to
+  // the lamp, and the edge stays a crisp circle on screen.
+  float h = clamp(hc, 0.0, 4.0);
+  vec3 tint = c.rgb / max(h, 0.045);
+  float lum = dot(tint, vec3(0.299, 0.587, 0.114));
+  tint = clamp(mix(vec3(lum), tint, 1.30), 0.0, 1.0);   // recover chroma lost to blending
+  float peak = max(tint.r, max(tint.g, tint.b));
+  tint /= max(peak, 0.72);
+  float dens = smoothstep(0.012, 0.20, h);
+  vec3 col = light * mix(vec3(1.0), clamp(tint, 0.0, 1.0), dens * 0.94) * uBath;
+
+  // wet highlight off the top of the film
+  vec3 n = normalize(vec3(grad * 22.0, 1.0));
+  float spec = pow(max(dot(n, normalize(vec3(-0.48, 0.60, 0.64))), 0.0), 32.0);
+  col += uSheen * 0.30 * spec;
+  col += uSheen * 0.12 * clamp(length(grad) * 14.0, 0.0, 1.0) * vec3(0.30, 0.55, 1.0);
+
+  // edge of the projected field
+  col *= mix(1.0, smoothstep(0.95, 0.30, rad), 0.5);
+  gl_FragColor = vec4(col, 1.0);
+}`);
+
+/* ---------------- geometry + buffers ---------------- */
+const quad = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, -1,1, 1,1, 1,-1]), gl.STATIC_DRAW);
+const idx = gl.createBuffer();
+gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idx);
+gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0,1,2, 0,2,3]), gl.STATIC_DRAW);
+gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+gl.enableVertexAttribArray(0);
+
+function blit(target){
+  if (target == null){
+    gl.viewport(0,0,gl.drawingBufferWidth, gl.drawingBufferHeight);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  } else {
+    gl.viewport(0,0,target.w,target.h);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo);
+  }
+  gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+}
+
+function createFBO(w,h,fmt,filter){
+  gl.activeTexture(gl.TEXTURE0);
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, fmt.i, w, h, 0, fmt.f, TYPE, null);
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  gl.viewport(0,0,w,h);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  return { tex, fbo, w, h, texelX:1/w, texelY:1/h,
+    attach(id){ gl.activeTexture(gl.TEXTURE0 + id); gl.bindTexture(gl.TEXTURE_2D, tex); return id; } };
+}
+function createDouble(w,h,fmt,filter){
+  let a = createFBO(w,h,fmt,filter), b = createFBO(w,h,fmt,filter);
+  return { w,h, texelX:1/w, texelY:1/h,
+    get read(){return a}, set read(v){a=v},
+    get write(){return b}, set write(v){b=v},
+    swap(){ const t=a; a=b; b=t; } };
+}
+
+const SIM_RES = 160, DYE_RES = 1024;
+let dye, velocity, divergence, curl, pressure;
+
+function resolution(res){
+  let ar = gl.drawingBufferWidth / gl.drawingBufferHeight;
+  if (ar < 1) ar = 1/ar;
+  const min = Math.round(res), max = Math.round(res * ar);
+  return gl.drawingBufferWidth > gl.drawingBufferHeight ? {w:max,h:min} : {w:min,h:max};
+}
+function initFramebuffers(){
+  const s = resolution(SIM_RES), d = resolution(DYE_RES);
+  dye = createDouble(d.w, d.h, RGBA, gl.LINEAR);
+  velocity = createDouble(s.w, s.h, RG, gl.LINEAR);
+  divergence = createFBO(s.w, s.h, R, gl.NEAREST);
+  curl = createFBO(s.w, s.h, R, gl.NEAREST);
+  pressure = createDouble(s.w, s.h, R, gl.NEAREST);
+}
+
+/* ---------------- config ---------------- */
+const config = {
+  palette: ['#FF2E63','#FFB300','#00E5C7','#7A5CFF','#FF6BD6','#4DA3FF'],
+  active: 0,
+  lamp: '#fff2dc', bath: '#f2f4f7',
+  spread: 0.90, merge: 0.92, size: 0.60, fade: 0.0,
+  force: 0.65, swirl: 0.42, viscosity: 0.09, tilt: 0,
+  sheen: 0.50, hot: 0.25, rings: 0.08,
+  cycle: true, paint: false, auto: true,
+  pressureIters: 22
+};
+
+function hexToRGB(hex){
+  const n = parseInt(hex.slice(1), 16);
+  return [((n>>16)&255)/255, ((n>>8)&255)/255, (n&255)/255];
+}
+function nextDye(){
+  const hex = config.palette[config.active];
+  if (config.cycle){ config.active = (config.active + 1) % config.palette.length; reflectActive(); }
+  return hex;
+}
+
+/* ---------------- splats ---------------- */
+const aspect = () => canvas.width / canvas.height;
+
+function velocitySplat(x, y, dx, dy, radius){
+  velSplatP.use();
+  gl.uniform1i(velSplatP.u.uTarget, velocity.read.attach(0));
+  gl.uniform1f(velSplatP.u.aspectRatio, aspect());
+  gl.uniform2f(velSplatP.u.point, x, y);
+  gl.uniform2f(velSplatP.u.force, dx, dy);
+  gl.uniform1f(velSplatP.u.radius, radius);
+  blit(velocity.write); velocity.swap();
+}
+function dyeSplat(x, y, hex, radius, load){
+  const t = hexToRGB(hex);
+  dyeSplatP.use();
+  gl.uniform1i(dyeSplatP.u.uTarget, dye.read.attach(0));
+  gl.uniform1f(dyeSplatP.u.aspectRatio, aspect());
+  gl.uniform2f(dyeSplatP.u.point, x, y);
+  gl.uniform3f(dyeSplatP.u.tint, t[0], t[1], t[2]);
+  gl.uniform1f(dyeSplatP.u.load, load);
+  gl.uniform1f(dyeSplatP.u.radius, radius);
+  blit(dye.write); dye.swap();
+}
+function radialSplat(x, y, radius, force){
+  radialP.use();
+  gl.uniform1i(radialP.u.uTarget, velocity.read.attach(0));
+  gl.uniform1f(radialP.u.aspectRatio, aspect());
+  gl.uniform2f(radialP.u.point, x, y);
+  gl.uniform1f(radialP.u.radius, radius);
+  gl.uniform1f(radialP.u.force, force);
+  blit(velocity.write); velocity.swap();
+}
+
+const dropRadius = () => 0.018 + config.size * 0.085;
+
+// a drop lands as a round bead; one even radial push, then the film's own
+// wetting force opens it out
+function dropAt(x, y, hex){
+  const r = dropRadius();
+  dyeSplat(x, y, hex || nextDye(), r * 0.55, 1.0);
+  radialSplat(x, y, r * 1.1, 45 + config.size * 150);
+  flashLamp();
+}
+
+/* ---------------- simulation step ---------------- */
+function step(dt){
+  gl.disable(gl.BLEND);
+
+  curlP.use();
+  gl.uniform2f(curlP.u.texelSize, velocity.texelX, velocity.texelY);
+  gl.uniform1i(curlP.u.uVelocity, velocity.read.attach(0));
+  blit(curl);
+
+  vorticityP.use();
+  gl.uniform2f(vorticityP.u.texelSize, velocity.texelX, velocity.texelY);
+  gl.uniform1i(vorticityP.u.uVelocity, velocity.read.attach(0));
+  gl.uniform1i(vorticityP.u.uCurl, curl.attach(1));
+  gl.uniform1f(vorticityP.u.curl, config.swirl * 46.0);
+  gl.uniform1f(vorticityP.u.dt, dt);
+  blit(velocity.write); velocity.swap();
+
+  if (Math.abs(config.tilt) > 0.001){
+    tiltP.use();
+    gl.uniform2f(tiltP.u.texelSize, velocity.texelX, velocity.texelY);
+    gl.uniform1i(tiltP.u.uVelocity, velocity.read.attach(0));
+    gl.uniform1i(tiltP.u.uDye, dye.read.attach(1));
+    gl.uniform1f(tiltP.u.amount, config.tilt * 220.0);
+    gl.uniform1f(tiltP.u.dt, dt);
+    blit(velocity.write); velocity.swap();
+  }
+
+  divergenceP.use();
+  gl.uniform2f(divergenceP.u.texelSize, velocity.texelX, velocity.texelY);
+  gl.uniform1i(divergenceP.u.uVelocity, velocity.read.attach(0));
+  blit(divergence);
+
+  clearP.use();
+  gl.uniform2f(clearP.u.texelSize, pressure.texelX, pressure.texelY);
+  gl.uniform1i(clearP.u.uTexture, pressure.read.attach(0));
+  gl.uniform1f(clearP.u.value, 0.8);
+  blit(pressure.write); pressure.swap();
+
+  pressureP.use();
+  gl.uniform2f(pressureP.u.texelSize, pressure.texelX, pressure.texelY);
+  gl.uniform1i(pressureP.u.uDivergence, divergence.attach(0));
+  for (let i=0;i<config.pressureIters;i++){
+    gl.uniform1i(pressureP.u.uPressure, pressure.read.attach(1));
+    blit(pressure.write); pressure.swap();
+  }
+
+  gradientP.use();
+  gl.uniform2f(gradientP.u.texelSize, velocity.texelX, velocity.texelY);
+  gl.uniform1i(gradientP.u.uPressure, pressure.read.attach(0));
+  gl.uniform1i(gradientP.u.uVelocity, velocity.read.attach(1));
+  blit(velocity.write); velocity.swap();
+
+  advectP.use();
+  gl.uniform2f(advectP.u.texelSize, velocity.texelX, velocity.texelY);
+  const vId = velocity.read.attach(0);
+  gl.uniform1i(advectP.u.uVelocity, vId);
+  gl.uniform1i(advectP.u.uSource, vId);
+  gl.uniform1f(advectP.u.dt, dt);
+  gl.uniform1f(advectP.u.dissipation, 1.0 - (0.02 + config.viscosity * 0.55) * dt);
+  blit(velocity.write); velocity.swap();
+
+  filmP.use();
+  gl.uniform2f(filmP.u.texelSize, dye.texelX, dye.texelY);
+  gl.uniform1i(filmP.u.uVelocity, velocity.read.attach(0));
+  gl.uniform1i(filmP.u.uSource, dye.read.attach(1));
+  gl.uniform1f(filmP.u.dt, dt);
+  gl.uniform1f(filmP.u.dissipation, 1.0 - (config.fade * 0.7) * dt);
+  gl.uniform1f(filmP.u.spread, config.spread * config.spread * 42.0);
+  blit(dye.write); dye.swap();
+
+  mergeP.use();
+  gl.uniform2f(mergeP.u.texelSize, dye.texelX, dye.texelY);
+  gl.uniform1i(mergeP.u.uTexture, dye.read.attach(0));
+  const amount = (0.002 + Math.pow(config.merge, 1.6) * 0.45) * (dt * 60.0);
+  gl.uniform1f(mergeP.u.amount, Math.min(0.9, amount));
+  blit(dye.write); dye.swap();
+}
+
+function render(){
+  const lampC = hexToRGB(config.lamp);
+  const bathC = hexToRGB(config.bath).map(v => 1.0 - (1.0 - v) * 0.55);
+  displayP.use();
+  gl.uniform2f(displayP.u.texelSize, dye.texelX, dye.texelY);
+  gl.uniform1i(displayP.u.uDye, dye.read.attach(0));
+  gl.uniform3f(displayP.u.uLamp, lampC[0], lampC[1], lampC[2]);
+  gl.uniform3f(displayP.u.uBath, bathC[0], bathC[1], bathC[2]);
+  gl.uniform1f(displayP.u.uSheen, config.sheen);
+  gl.uniform1f(displayP.u.uHot, config.hot * 0.75);
+  gl.uniform1f(displayP.u.uRings, config.rings * 0.11);
+  gl.uniform1f(displayP.u.uAspect, aspect());
+  blit(null);
+}
+
+/* ---------------- pointer ---------------- */
+const pointers = new Map();
+let lastTapTime = 0, lastTapX = 0, lastTapY = 0;
+
+function toUV(e){
+  const r = canvas.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / r.width, y: 1.0 - (e.clientY - r.top) / r.height };
+}
+
+canvas.addEventListener('pointerdown', e => {
+  canvas.setPointerCapture(e.pointerId);
+  const p = toUV(e), now = performance.now();
+  const near = Math.hypot(p.x - lastTapX, p.y - lastTapY) < 0.045;
+  if (now - lastTapTime < 380 && near){
+    dropAt(p.x, p.y);
+    lastTapTime = 0;
+    pointers.set(e.pointerId, { x:p.x, y:p.y });
+    dismissHint();
+    return;
+  }
+  lastTapTime = now; lastTapX = p.x; lastTapY = p.y;
+  pointers.set(e.pointerId, { x:p.x, y:p.y });
+});
+
+canvas.addEventListener('pointermove', e => {
+  const prev = pointers.get(e.pointerId);
+  if (!prev) return;
+  const p = toUV(e);
+  const gain = 600 + config.force * 5400;
+  const dx = (p.x - prev.x) * aspect() * gain;
+  const dy = (p.y - prev.y) * gain;
+  if (dx || dy){
+    velocitySplat(p.x, p.y, dx, dy, dropRadius() * 0.6);
+    if (config.paint) dyeSplat(p.x, p.y, config.palette[config.active], dropRadius()*0.35, 0.5);
+    dismissHint();
+  }
+  prev.x = p.x; prev.y = p.y;
+});
+const endPointer = e => pointers.delete(e.pointerId);
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
+canvas.addEventListener('dblclick', e => e.preventDefault());
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+/* ---------------- console ---------------- */
+const $ = id => document.getElementById(id);
+const swatchWrap = $('swatches'), dyeEdit = $('dyeEdit');
+
+function buildSwatches(){
+  swatchWrap.innerHTML = '';
+  config.palette.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.className = 'sw'; b.style.background = c;
+    b.setAttribute('aria-pressed', String(i === config.active));
+    b.setAttribute('aria-label', 'Select dye ' + (i+1));
+    b.addEventListener('click', () => { config.active = i; reflectActive(); });
+    swatchWrap.appendChild(b);
+  });
+}
+function reflectActive(){
+  [...swatchWrap.children].forEach((b,i) => b.setAttribute('aria-pressed', String(i === config.active)));
+  dyeEdit.value = config.palette[config.active];
+  document.documentElement.style.setProperty('--accent', config.palette[config.active]);
+}
+buildSwatches(); reflectActive();
+
+dyeEdit.addEventListener('input', () => {
+  config.palette[config.active] = dyeEdit.value;
+  swatchWrap.children[config.active].style.background = dyeEdit.value;
+  document.documentElement.style.setProperty('--accent', dyeEdit.value);
+});
+$('lampEdit').addEventListener('input', e => config.lamp = e.target.value);
+$('bathEdit').addEventListener('input', e => config.bath = e.target.value);
+$('lampEdit').value = config.lamp;
+$('bathEdit').value = config.bath;
+
+function slider(id, key, readout, transform){
+  const el = $(id), show = $(readout);
+  const apply = () => {
+    const raw = +el.value;
+    config[key] = transform ? transform(raw) : raw/100;
+    show.textContent = (key === 'tilt' && raw > 0 ? '+' : '') + raw;
+  };
+  el.addEventListener('input', apply); apply();
+}
+slider('spread','spread','v-spread');
+slider('merge','merge','v-merge');
+slider('size','size','v-size');
+slider('fade','fade','v-fade');
+slider('force','force','v-force');
+slider('swirl','swirl','v-swirl');
+slider('visc','viscosity','v-visc');
+slider('tilt','tilt','v-tilt', v => v/100);
+slider('sheen','sheen','v-sheen');
+slider('hot','hot','v-hot');
+slider('rings','rings','v-rings');
+
+$('cycle').addEventListener('change', e => config.cycle = e.target.checked);
+$('paint').addEventListener('change', e => config.paint = e.target.checked);
+$('auto').addEventListener('change', e => config.auto = e.target.checked);
+
+$('clear').addEventListener('click', () => {
+  clearP.use();
+  gl.uniform2f(clearP.u.texelSize, dye.texelX, dye.texelY);
+  gl.uniform1i(clearP.u.uTexture, dye.read.attach(0));
+  gl.uniform1f(clearP.u.value, 0.0);
+  blit(dye.write); dye.swap();
+  gl.uniform1i(clearP.u.uTexture, velocity.read.attach(0));
+  blit(velocity.write); velocity.swap();
+});
+
+$('full').addEventListener('click', () => {
+  const el = document.documentElement;
+  if (document.fullscreenElement) document.exitFullscreen();
+  else (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
+});
+
+const consoleEl = $('console'), tab = $('tab');
+tab.addEventListener('click', () => {
+  const closed = consoleEl.classList.toggle('closed');
+  tab.classList.toggle('closed', closed);
+  tab.textContent = closed ? '▶' : '◀';
+});
+
+const lampLED = $('lamp');
+let lampTimer = 0;
+function flashLamp(){
+  lampLED.textContent = '● dye dropped';
+  clearTimeout(lampTimer);
+  lampTimer = setTimeout(() => lampLED.textContent = '● dye loaded', 900);
+}
+
+const hint = $('hint');
+let hintTimer = setTimeout(dismissHint, 9000);
+function dismissHint(){ clearTimeout(hintTimer); hint.classList.add('gone'); }
+
+window.addEventListener('keydown', e => {
+  if (e.target.matches('input')) return;
+  if (e.key === ' ') { e.preventDefault(); $('auto').click(); }
+  else if (e.key.toLowerCase() === 'c') $('clear').click();
+  else if (e.key.toLowerCase() === 'h') tab.click();
+  else if (e.key.toLowerCase() === 'f') $('full').click();
+});
+
+/* ---------------- resize + loop ---------------- */
+function resize(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.floor(window.innerWidth * dpr), h = Math.floor(window.innerHeight * dpr);
+  if (canvas.width !== w || canvas.height !== h){
+    canvas.width = w; canvas.height = h;
+    initFramebuffers();
+  }
+}
+window.addEventListener('resize', resize);
+resize();
+initFramebuffers();
+
+(function seed(){
+  [[0.36,0.60],[0.60,0.46],[0.50,0.32],[0.68,0.66]].forEach((s,i) =>
+    dropAt(s[0], s[1], config.palette[i % config.palette.length]));
+  lampLED.textContent = '● dye loaded';
+})();
+
+let last = performance.now(), autoAt = performance.now() + 1500;
+function frame(now){
+  let dt = (now - last) / 1000; last = now;
+  dt = Math.min(dt, 0.0166);
+
+  if (config.auto && now > autoAt){
+    dropAt(0.14 + Math.random()*0.72, 0.14 + Math.random()*0.72);
+    autoAt = now + 900 + Math.random()*2200;
+  }
+
+  step(dt);
+  render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+})();
+</script>
+</body>
+</html>
