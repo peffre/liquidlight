@@ -1,7 +1,7 @@
-# Liquid Light — LL-1 Overhead Stage
+# Liquid Light — LL-1
 
 A browser-based liquid light show. Colored dyes are dropped onto a simulated
-overhead projector stage, spread outward as circular films, and are stirred by
+overhead projector, spread outward as circular films, and are stirred by
 an incompressible fluid bath underneath. Light passes *through* the film rather
 than being emitted by it, so the image behaves like an oil-wheel projection
 rather than a glowing particle effect.
